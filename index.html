@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Socket.io simple chat</title>
+   <style>
+     #searchbar {
+  position: fixed;
+  bottom: 20px;
+  left: 0;
+  width: 100%;
+  margin-left: auto;
+  margin-right: auto;
+  text-align: center;
+}
+.input-wrapper {
+  position: absolute;
+  right: 110px;
+  left: 0px;
+  top: 0px;
+  bottom: 0px;
+}
+/* Form wrapper styling */
+
+.form-wrapper {
+  position: relative;
+  left: 0px;
+  top: 0px;
+  width: 50%;
+  height: 37px;
+  display: inline-block;
+}
+.form-wrapper input {
+  height: 100%;
+  width: 100%;
+  padding: 8px 10px;
+  float: left;
+  color: #1f1f9d;
+  border: 0;
+  background: #e6e6e6;
+  -webkit-box-sizing: border-box;
+  /* Safari/Chrome, other WebKit */
+  -moz-box-sizing: border-box;
+  /* Firefox, other Gecko */
+  box-sizing: border-box;
+  /* Opera/IE 8+ */
+}
+/* Form submit button */
+
+.form-wrapper button {
+  position: absolute;
+  right: 0px;
+  top: 0px;
+  overflow: visible;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  height: 37px;
+  width: 104px;
+  color: #ffffff;
+  background: red;
+}
+.form-wrapper button::-moz-focus-inner {
+  /* remove extra button spacing for Mozilla Firefox */
+  border: 0;
+  padding: 0;
+}
+     .message_form{
+      width: 90%;
+      margin: auto;
+      display: block;
+    }
+    .sent__message{
+      display: flex;
+      justify-content: end;
+    }
+    .sent__message p{
+      background-color: #34344b;
+      color: #ffffff;
+      padding:5px 8px;
+      font-size: 18px;
+      border: 2px solid green;
+      border-radius: 25px 25px 0 25px;
+    }
+    .received__message p{
+      display: inline;
+      background-color: #34344b;
+      color: #ffffff;
+      padding:5px 8px;
+      font-size: 18px;
+      border: 2px solid green;
+      border-radius: 25px 25px 25px 0px;
+    }
+    .message__info{
+      margin-bottom: 7px;
+    }
+    .message__author{
+      font-size: 12px;
+    }
+    .inbox__people h4{
+      display: inline-block;
+      font-size: 20px;
+      color: green;
+    }
+    .chat_ib{
+      display: inline-block;
+      padding:0 4px;
+    }
+   </style>
+
+  </head>
+  <body>
+    <div class="container">
+      <div class="inbox">
+        <div class="inbox__people">
+          <h4>Active users:</h4>
+        </div>
+        <div class="inbox__messages">
+          <div class="messages__history"></div>
+          <div class="fallback"></div>
+        </div>
+      </div>
+
+      <div id="searchbar">
+      <form class="message_form form-wrapper">
+        <div class="input-wrapper">
+        <input type="text" class="message_form__input" placeholder="Type a message" />
+        </div>
+        <button class="message_form__button" type="submit">
+          Enter
+        </button>
+      </form>
+    </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+const socket = io();
+
+const inboxPeople = document.querySelector(".inbox__people");
+
+let userName = "";
+
+const newUserConnected = (user) => {
+  userName = user || `ID${Math.floor(Math.random() * 1000000)}`;
+  socket.emit("new user", userName);
+  addToUsersBox(userName);
+};
+
+const addToUsersBox = (userName) => {
+  if (!!document.querySelector(`.${userName}-userlist`)) {
+    return;
+  }
+
+  const userBox = `
+    <div class="chat_ib ${userName}-userlist">
+      <h5>${userName}</h5>
+    </div>
+  `;
+  inboxPeople.innerHTML += userBox;
+};
+
+// new user is created so we generate nickname and emit event
+newUserConnected();
+
+socket.on("new user", function (data) {
+  data.map((user) => addToUsersBox(user));
+});
+
+socket.on("user disconnected", function (userName) {
+  document.querySelector(`.${userName}-userlist`).remove();
+});
+const inputField = document.querySelector(".message_form__input");
+const messageForm = document.querySelector(".message_form");
+const messageBox = document.querySelector(".messages__history");
+
+const addNewMessage = ({ user, message }) => {
+  const time = new Date();
+  const formattedTime = time.toLocaleString("en-US", { hour: "numeric", minute: "numeric" });
+
+  const receivedMsg = `
+  <div class="incoming__message">
+    <div class="received__message">
+      <div class="message__info">
+        <span class="message__author">${user}</span>
+      </div>
+      <p>${message}</p>
+      <span class="time_date">${formattedTime}</span>
+    </div>
+  </div>`;
+
+  const myMsg = `
+  <div class="outgoing__message">
+    <div class="sent__message">
+      <p>${message}</p>
+      <div class="message__info">
+        <span class="time_date">${formattedTime}</span>
+      </div>
+    </div>
+  </div>`;
+
+  messageBox.innerHTML += user === userName ? myMsg : receivedMsg;
+};
+
+messageForm.addEventListener("submit", (e) => {
+  e.preventDefault();
+  if (!inputField.value) {
+    return;
+  }
+
+  socket.emit("chat message", {
+    message: inputField.value,
+    nick: userName,
+  });
+
+  inputField.value = "";
+});
+
+socket.on("chat message", function (data) {
+  addNewMessage({ user: data.nick, message: data.message });
+});
+    </script>
+  </body>
+</html>
